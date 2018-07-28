@@ -3,8 +3,9 @@ import requests
 import pandas as pd
 import re
 import os
-import lxml
 import numpy as np
+import traceback
+import lxml
 
 __author__ = "Mike Zhong"
 
@@ -22,19 +23,23 @@ class Scraper:
         """
         self.url_base = base_url
         self.soup = None
-        self.url_options = {}
         self.wd = os.getcwd()
         self.weeks = np.arange(1, 17)
+        self.concat_table = None
+        self.headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
+                          'Chrome/67.0.3396.99 Safari/537.36'
+        }
         self.dfs = {}
 
-    def build_url(self, week, rules):
+    def build_url(self, week, year, rules):
         """
         Returns URL based on the week and rules
         :param week: string (1-16)
         :param rules: string (1 or 2)
         :return: full URL for parsing
         """
-        return self.url_base + '&wk=' + str(week) + '&rules=' + rules
+        return self.url_base + '&yr=' + str(year) + '&wk=' + str(week) + '&rules=' + str(rules)
 
     def mod_header(self, header):
         """
@@ -56,11 +61,12 @@ class Scraper:
         :param url: full URL to parse
         :return: None
         """
-        response = requests.get(url)
+        response = requests.get(url, headers=self.headers)
         if response.status_code == 200:
             self.soup = BeautifulSoup(response.text, 'lxml')
         else:
             raise BaseException('Response returned status code:', response.status_code)
+
 
     def parse_html_table(self, week):
         """
@@ -119,8 +125,10 @@ class Scraper:
         """
         dfs = [df for df in self.dfs.values()]
         print(type(dfs))
-        new_df = pd.concat(dfs, axis=0, ignore_index=True)
-        new_df.to_csv(self.wd + '/data/merged.csv', index=False)
+        self.concat_table = pd.concat(dfs, axis=0, ignore_index=True)
+
+    def write_concat_table(self, filename):
+        self.concat_table.to_csv(os.path.join(self.wd, 'data', filename), index=None)
 
     def write_tables(self):
         """
@@ -134,22 +142,30 @@ class Scraper:
 if __name__ == "__main__":
 
     # Driver
-    base_url = 'http://www.footballdb.com/fantasy-football/index.html?pos=QB%2CRB%2CWR%2CTE&yr=2016'
+    base_url = r'https://www.footballdb.com/fantasy-football/index.html?pos=QB%2CRB%2CWR%2CTE'
+    years = ['2010', '2011', '2012', '2013', '2014', '2015', '2016', '2017']
     rules = '2'  # 2=PPR, 1=standard
 
     scraper = Scraper(base_url)
 
-    # iterate over all 16 weeks
-    for week in scraper.weeks:
-        # build the URL
-        url = scraper.build_url(week, rules)
-        # parse the URL, the scraper.soup should now hold the BeautifulSoup object
-        scraper.parse_url(url)
+    for year in years:
 
-        # parse the table and store in scraper.dfs
-        if scraper.soup:
-            scraper.parse_html_table(week)
+        # iterate over all 16 weeks
+        for week in scraper.weeks:
+            # build the URL
+            url = scraper.build_url(week, year, rules)
 
-    scraper.concat_tables()
+            # parse the URL, the scraper.soup should now hold the BeautifulSoup object
+            scraper.parse_url(url)
 
-    # scraper.write_tables()
+            # parse the table and store in scraper.dfs
+            if scraper.soup:
+                scraper.parse_html_table(week)
+
+        scraper.concat_tables()
+
+        filename = str(year) + '_data.csv'
+        print("writing " + filename + " to disk...")
+        scraper.write_concat_table(filename)
+
+

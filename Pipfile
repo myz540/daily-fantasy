@@ -7,6 +7,11 @@ name = "pypi"
 
 [packages]
 
+requests = "*"
+numpy = "*"
+pandas = "*"
+"beautifulsoup4" = "*"
+lxml = "*"
 
 
 [dev-packages]
