@@ -67,7 +67,6 @@ class Scraper:
         else:
             raise BaseException('Response returned status code:', response.status_code)
 
-
     def parse_html_table(self, week):
         """
         heavily lifting method, see the 'bs4_and_requests.ipynb' notebook for the development of this method
